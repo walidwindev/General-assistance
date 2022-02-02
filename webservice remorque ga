@@ -1,0 +1,39 @@
+SELECT  immat as "Immatricule" , p1.codprod ,    p100.numcnt as  "Num du contrat"  , 
+(case    when  P1.situat   =  'R' then  'Resiliation'  when   p1.situat ='S'  then  'Suspendu' when      P1.situat   =  'E'    then (case when   p1.fineffet >  varchar_format(now(),  'yyyymm')  then  'En cours'   else 'Expiration' end   ) else  'Expiration'   end   ) etat  , 
+case  when    p1.dateprec =  0 then  '-' else  (   substr( p1.dateprec   , 1 , 4 ) || '-'   ||   substr( p1.dateprec , 5 , 2 )     ||  '-'||substr( p1.dateprec , 7 ,    2  )    )   end      as "Date  precision"      ,
+   substr( p1.debeffet  , 1  , 4 )  ||  '-' || substr(   p1.debeffet , 5  , 2  ) ||   '-'||substr(  p1.debeffet  , 7 ,  2  )  as "Date   effet du contrat"   , 
+ substr( p1.fineffet   , 1  ,  4 ) || '-' ||  substr(   p1.fineffet , 5 , 2 ) ||  '-'||substr(   p1.fineffet , 7 , 2 )  as "Fin   effet du contrat" , 
+(case when 
+coalesce((select  p3.codgrnt  from amidata.prtb003 p3 where
+   p100.numcnt=p3.numcnt 
+and  p100.numavt  = p3.numavt
+and p100.nummaj = p3.nummaj 
+and 
+codgrnt  IN ('ASSP' ,'ASS') fetch first 1 row only
+),'no') 
+='no' then 'couverture introuvable!'
+
+ when  coalesce((select  p3.codgrnt  from amidata.prtb003 p3 where
+p1.debeffet >=20220101
+  and  p100.numcnt=p3.numcnt 
+and  p100.numavt  = p3.numavt
+and p100.nummaj = p3.nummaj 
+and 
+codgrnt  IN ('ASSP' ,'ASS') fetch first 1 row only
+),'no')  <>'no' then 'Generale assistance'
+
+when (select count(*)     from amidata.extb01 ex ,  amidata.prtb003 p3 where ex.numcnt =p3.numcnt  and  ex.numcnt =p1.numcnt  fetch first 1 row only    ) > 0  then 'Carthage assistance'  
+else 'Generale assistance'
+end ) as "Prestataire" 
+
+ from   
+    amidata.prtb001 p1 LEFT Join  amidata.prtb100 p100
+
+  on  p100.numcnt=p1.numcnt 
+and  p100.numavt = p1.numavt
+and p100.nummaj = p1.nummaj 
+ where   ( upper(immat)=? or lcase(immat)=?)
+ and p1.codprod in ('521' , '541'  , '572' , '531' , '526' , '571'  , '573'  , '529' , '522')
+
+ order by debeffet desc ,   p1.numcnt desc ,  p1.numavt  desc , p1.nummaj desc
+ fetch first 1 row only
